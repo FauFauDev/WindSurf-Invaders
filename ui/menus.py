@@ -302,7 +302,10 @@ def draw_menu_items(fenetre, temps):
         ("MOVE", menu_y + 85, None, (0, 255, 255)),
         ("SPACE : SHOOT", menu_y + 150, None, (255, 255, 0)),
         ("P : PAUSE", menu_y + 195, None, (255, 128, 0)),
-        ("ESC : QUIT", menu_y + 240, None, (255, 0, 0))
+        ("", menu_y + 220, None, (0, 0, 0)),
+        ("F : TOGGLE FULL SCREEN", menu_y + 235, None, (128, 255, 128)),
+        ("", menu_y + 250, None, (0, 0, 0)),
+        ("ESC : QUIT", menu_y + 265, None, (255, 0, 0))
     ]
     
     # Draw instructions with enhanced effects
