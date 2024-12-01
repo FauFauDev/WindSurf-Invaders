@@ -723,8 +723,8 @@ def dessiner_menu_pause(fenetre):
     # Instructions with pulsating effect
     font_instructions = pygame.font.Font(None, 36)
     instructions = [
-        'P pour reprendre',
-        'ESC pour quitter'
+        'P : CONTINUE',
+        'ESC : QUIT'
     ]
     
     for i, texte in enumerate(instructions):
@@ -796,7 +796,7 @@ def dessiner_game_over(fenetre, score, meilleur_score):
     
     # High score with glow effect
     meilleur_formatte = f"{meilleur_score:,}"
-    texte_meilleur = font_score.render(f"MEILLEUR SCORE: {meilleur_formatte}", True, (0, 255, 0))
+    texte_meilleur = font_score.render(f"BEST SCORE: {meilleur_formatte}", True, (0, 255, 0))
     pos_meilleur = (LARGEUR//2 - texte_meilleur.get_width()//2, HAUTEUR//2 + 70)
     
     # Add "halo" effect around scores
@@ -814,8 +814,8 @@ def dessiner_game_over(fenetre, score, meilleur_score):
     alpha = int(abs(math.sin(temps/500)) * 255)
     
     instructions = [
-        ("R pour recommencer", HAUTEUR//2 + 160),
-        ("ESC pour quitter", HAUTEUR//2 + 200)
+        ("R : RESTART", HAUTEUR//2 + 160),
+        ("ESC : QUIT", HAUTEUR//2 + 200)
     ]
     
     for texte, y in instructions:
