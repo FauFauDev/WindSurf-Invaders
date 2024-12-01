@@ -2,7 +2,7 @@ import pygame
 import sys
 import random
 import math
-from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_SPACE, K_p, K_r, K_LEFT, K_RIGHT
+from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_SPACE, K_p, K_r, K_LEFT, K_RIGHT, K_f
 import os
 
 # Import configuration
@@ -161,7 +161,14 @@ class Game:
                         self.game_over = False
                         self.pause = False
                         # Don't stop music when returning to menu
-                
+            
+                elif event.key == K_f:  # Add fullscreen toggle
+                    current_flags = self.fenetre.get_flags()
+                    if current_flags & pygame.FULLSCREEN:
+                        self.fenetre = pygame.display.set_mode((LARGEUR, HAUTEUR))
+                    else:
+                        self.fenetre = pygame.display.set_mode((LARGEUR, HAUTEUR), pygame.FULLSCREEN)
+            
                 elif event.key == K_SPACE:
                     if self.menu:
                         self.menu = False
