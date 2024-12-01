@@ -303,6 +303,25 @@ def changer_niveau():
   * random
   * typing
 
+### Menu System
+```python
+class MenuManager:
+    - Manages all game menus and UI overlays
+    - Components:
+        * Pause Menu:
+            - "P : CONTINUE" option
+            - "ESC : QUIT" option
+        * Game Over Menu:
+            - "R : RESTART" option
+            - "ESC : QUIT" option
+            - Best score display with glow effect
+    - Features:
+        * Pulsating text effects
+        * Score display with glow effects
+        * Smooth transitions
+        * Responsive layout
+```
+
 ### Boss System
 
 #### Boss Class
