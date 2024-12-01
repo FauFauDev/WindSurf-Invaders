@@ -1,6 +1,6 @@
 # WindSurf Invaders
 
-A modern take on the classic Space Invaders game, built with Python.
+A modern take on the classic Space Invaders game, built with Python by WindSurf AI IDE.
 
 ## Installation
 
