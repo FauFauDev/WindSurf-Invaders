@@ -6,10 +6,32 @@
 - `main.py`: Main game loop and initialization
 - `assets.py`: Asset loading and management
 - `config.py`: Game configuration and constants
+- `create_effects.py`: Visual effects generation
+- `create_sounds.py`: Sound effects management
+- `download_assets.py`: Asset downloading utility
 - `entities/`: Game entity classes
-- `systems/`: Game systems and mechanics
+  * `alien.py`: Alien enemies and formations
+  * `boss.py`: Boss enemy behavior
+  * `mystery_alien.py`: Special mystery aliens
+  * `player.py`: Player character
+  * `powerup.py`: Power-up items
+  * `projectiles.py`: Projectile management
+  * `explosion.py`: Explosion effects
+- `effects/`: Visual and gameplay effects
+  * `visual_effects.py`: Visual effect management
+  * `powerup_effects.py`: Power-up effect implementation
+- `systems/`: Game systems
+  * `score.py`: Score and combo system
 - `ui/`: User interface components
-- `utils/`: Utility functions and helpers
+  * `background.py`: Parallax background
+  * `menus.py`: Game menus
+  * `hud.py`: Heads-up display
+  * `modern_hud.py`: Enhanced HUD implementation
+- `utils/`: Utility functions
+  * `assets_loader.py`: Asset loading utilities
+- `data/`: Game data storage
+  * `highscore.json`: High score data
+  * `highscore.backup.json`: Backup of high scores
 
 ## Class Architecture
 
@@ -271,6 +293,56 @@ def changer_niveau():
 - Sprite group management
 - Efficient collision detection
 - Resource preloading
+
+## Game States
+```python
+class GameState:
+    - NORMAL: Regular gameplay
+    - BOSS_WARNING: Pre-boss warning phase
+    - BOSS_TRANSITION: Transition to boss fight
+    - BOSS_FIGHT: Active boss battle
+```
+
+## Configuration System
+```python
+# Window Settings
+- LARGEUR: 1600 (Window width)
+- HAUTEUR: 1200 (Window height)
+- HUD_HAUTEUR: 60 (HUD height)
+
+# Gameplay Parameters
+- VITESSE_ALIEN: Base alien movement speed
+- VITESSE_ALIEN_POST_BOSS: Increased speed after boss (1.5x)
+- VITESSE_DESCENTE: Vertical movement speed
+- FREQUENCE_TIR_ALIEN_BASE: Base alien shooting frequency
+```
+
+## Boss System
+```python
+class BossConstants:
+    - Health System:
+        * Base HP: 50
+        * Level scaling: 15% per level
+        * Max health: 1000
+        * Damage resistance: 85%
+    
+    - Movement:
+        * Base speed: 2
+        * Vertical bounds: 100-300
+        * Pattern duration: 5000ms
+        * Pattern cooldown: 1000ms
+    
+    - Combat:
+        * Phase thresholds: 70%, 30%
+        * Shot cooldown: 1000ms
+        * Burst size: 5 projectiles
+        * Summon cooldown: 15000ms
+    
+    - Special Abilities:
+        * Dash cooldown: 3000ms
+        * Teleport cooldown: 4000ms
+        * Flash duration: 200ms
+```
 
 ## Asset Management
 - Images loaded and converted for optimal performance
