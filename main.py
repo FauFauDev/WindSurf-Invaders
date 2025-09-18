@@ -35,6 +35,7 @@ class Game:
         random.seed()
         
         self.fenetre = pygame.display.set_mode((LARGEUR, HAUTEUR))
+        self.render_surface = pygame.Surface((LARGEUR, HAUTEUR)).convert()
         pygame.display.set_caption('WindSurf Invaders')
         
         # Load assets
@@ -167,7 +168,11 @@ class Game:
                     if current_flags & pygame.FULLSCREEN:
                         self.fenetre = pygame.display.set_mode((LARGEUR, HAUTEUR))
                     else:
-                        self.fenetre = pygame.display.set_mode((LARGEUR, HAUTEUR), pygame.FULLSCREEN)
+                        info = pygame.display.Info()
+                        fullscreen_flags = pygame.FULLSCREEN | pygame.SCALED
+                        self.fenetre = pygame.display.set_mode(
+                            (info.current_w, info.current_h), fullscreen_flags
+                        )
             
                 elif event.key == K_SPACE:
                     if self.menu:
@@ -593,53 +598,62 @@ class Game:
             self.joueur.rect.bottom = HAUTEUR - 10
 
     def draw(self):
+        surface = self.render_surface
+        surface.fill((0, 0, 0))
+
         # Draw background first
-        self.background.draw(self.fenetre)
-        
+        self.background.draw(surface)
+
         if not self.menu and not self.game_over:
             # Draw game objects
-            self.joueur.dessiner(self.fenetre)
-            
+            self.joueur.dessiner(surface)
+
             # Draw player projectiles
             for projectile in self.projectiles:
                 if isinstance(projectile, Projectile):
-                    projectile.dessiner(self.fenetre)
-            
+                    projectile.dessiner(surface)
+
             # Draw alien projectiles
             for projectile in self.projectiles_aliens:
                 if isinstance(projectile, (ProjectileAlien, ProjectileMystereAgressif)):
-                    projectile.dessiner(self.fenetre)
-            
+                    projectile.dessiner(surface)
+
             for alien in self.envahisseurs:
-                alien.dessiner(self.fenetre)
-                
+                alien.dessiner(surface)
+
             for explosion in self.explosions:
-                explosion.dessiner(self.fenetre)
-                
+                explosion.dessiner(surface)
+
             for powerup in self.powerups:
-                powerup.dessiner(self.fenetre)
-            
+                powerup.dessiner(surface)
+
             # Draw mystery aliens before boss (so boss appears in front)
             for alien in self.mystery_aliens:
-                self.fenetre.blit(alien.image, alien.rect)
-            
+                surface.blit(alien.image, alien.rect)
+
             if self.boss:
-                self.boss.draw(self.fenetre)
-            
+                self.boss.draw(surface)
+
             # Draw HUD using the new modern HUD
-            self.hud.draw(self.fenetre, self)
-            
+            self.hud.draw(surface, self)
+
             if self.pause:
                 from ui.menus import dessiner_menu_pause
-                dessiner_menu_pause(self.fenetre)
-        
+                dessiner_menu_pause(surface)
+
         elif self.menu:
             from ui.menus import dessiner_menu_accueil
-            dessiner_menu_accueil(self.fenetre, self.meilleur_score)  # Pass meilleur_score
+            dessiner_menu_accueil(surface, self.meilleur_score)  # Pass meilleur_score
         elif self.game_over:
             from ui.menus import dessiner_game_over
-            dessiner_game_over(self.fenetre, self.score, self.meilleur_score)
-        
+            dessiner_game_over(surface, self.score, self.meilleur_score)
+
+        if self.fenetre.get_size() != surface.get_size():
+            scaled_surface = pygame.transform.smoothscale(surface, self.fenetre.get_size())
+            self.fenetre.blit(scaled_surface, (0, 0))
+        else:
+            self.fenetre.blit(surface, (0, 0))
+
         pygame.display.flip()
 
     def run(self):
