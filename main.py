@@ -2,7 +2,7 @@ import pygame
 import sys
 import random
 import math
-from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_SPACE, K_p, K_r, K_LEFT, K_RIGHT, K_f
+from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_p, K_r, K_f
 import os
 
 # Import configuration
@@ -23,8 +23,12 @@ from entities.explosion import Explosion
 from ui.background import ParallaxBackground
 from ui.modern_hud import ModernHUD
 
+from ui.menus import dessiner_menu_accueil, handle_menu_event, menu_state
+
 # Import systems
 from systems.score import ComboSystem, charger_meilleur_score, sauvegarder_meilleur_score
+
+from utils.control_settings import ControlSettings
 
 class Game:
     def __init__(self):
@@ -35,9 +39,13 @@ class Game:
         random.seed()
         
         self.fenetre = pygame.display.set_mode((LARGEUR, HAUTEUR))
+        self.windowed_size = (LARGEUR, HAUTEUR)
         self.render_surface = pygame.Surface((LARGEUR, HAUTEUR)).convert()
-        pygame.display.set_caption('WindSurf Invaders')
+        pygame.display.set_caption('Nebula Surge')
         
+        self.controls = ControlSettings()
+        menu_state.load_resources()
+
         # Load assets
         self.images = load_game_images()
         self.effect_manager = EffectManager(self.images)
@@ -136,7 +144,7 @@ class Game:
             self.images['player'] = selected_ship
         
         # Create player with selected ship image
-        self.joueur = Joueur(self.sound_manager, player_img=self.images['player'])
+        self.joueur = Joueur(self.sound_manager, player_img=self.images['player'], controls=self.controls)
         self.joueur.rect.centerx = LARGEUR // 2
         self.joueur.rect.bottom = HAUTEUR - 20
         
@@ -148,12 +156,47 @@ class Game:
         self.combo_system.reset()
         self.sound_manager.play('music', 0.3)  # Start music at lower volume
 
+    def toggle_fullscreen(self):
+        current_flags = self.fenetre.get_flags()
+        if current_flags & pygame.FULLSCREEN:
+            self.fenetre = pygame.display.set_mode(self.windowed_size)
+        else:
+            self.windowed_size = self.fenetre.get_size()
+            fullscreen_flags = pygame.FULLSCREEN | pygame.SCALED
+            try:
+                self.fenetre = pygame.display.set_mode((0, 0), fullscreen_flags)
+            except pygame.error as error:
+                print(f"Falling back to standard fullscreen: {error}")
+                self.fenetre = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        pygame.display.set_caption('Nebula Surge')
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == QUIT:
                 self.running = False
             
             elif event.type == KEYDOWN:
+                fire_key = self.controls.get('fire')
+
+                if self.menu:
+                    menu_action = handle_menu_event(event, self.controls)
+                    if menu_action == 'start':
+                        self.menu = False
+                        self.game_over = False
+                        self.pause = False
+                        menu_state.active_view = 'main'
+                        menu_state.awaiting_binding = None
+                        menu_state.binding_feedback = ''
+                        menu_state.binding_feedback_time = 0
+                        menu_state.controls_selection = 0
+                        self.demarrer_nouveau_jeu()
+                        continue
+                    if menu_action == 'quit':
+                        self.running = False
+                        continue
+                    if menu_action == 'handled':
+                        continue
+
                 if event.key == K_ESCAPE:
                     if self.menu:
                         self.running = False
@@ -161,36 +204,31 @@ class Game:
                         self.menu = True
                         self.game_over = False
                         self.pause = False
-                        # Don't stop music when returning to menu
-            
-                elif event.key == K_f:  # Add fullscreen toggle
-                    current_flags = self.fenetre.get_flags()
-                    if current_flags & pygame.FULLSCREEN:
-                        self.fenetre = pygame.display.set_mode((LARGEUR, HAUTEUR))
-                    else:
-                        info = pygame.display.Info()
-                        fullscreen_flags = pygame.FULLSCREEN | pygame.SCALED
-                        self.fenetre = pygame.display.set_mode(
-                            (info.current_w, info.current_h), fullscreen_flags
-                        )
-            
-                elif event.key == K_SPACE:
-                    if self.menu:
-                        self.menu = False
-                        self.demarrer_nouveau_jeu()
-                    elif not self.pause and not self.game_over:
+                        menu_state.active_view = 'main'
+                        menu_state.awaiting_binding = None
+                        menu_state.binding_feedback = ''
+                        menu_state.binding_feedback_time = 0
+                        menu_state.controls_selection = 0
+
+                elif event.key == K_f:
+                    self.toggle_fullscreen()
+
+                elif event.key == fire_key and not self.menu:
+                    if not self.pause and not self.game_over:
                         self.tirer()
-                
+                        self.tirer()
+
                 elif event.key == K_p and not self.menu and not self.game_over:
                     self.pause = not self.pause
                     if self.pause:
                         self.sound_manager.pause_music()
                     else:
                         self.sound_manager.unpause_music()
-                
+
                 elif event.key == K_r and self.game_over:
                     self.game_over = False
                     self.demarrer_nouveau_jeu()
+
 
     def tirer(self):
         if self.joueur.shoot():  # Use the player's shoot method instead of peut_tirer
@@ -642,8 +680,7 @@ class Game:
                 dessiner_menu_pause(surface)
 
         elif self.menu:
-            from ui.menus import dessiner_menu_accueil
-            dessiner_menu_accueil(surface, self.meilleur_score)  # Pass meilleur_score
+            dessiner_menu_accueil(surface, self.meilleur_score, self.controls)
         elif self.game_over:
             from ui.menus import dessiner_game_over
             dessiner_game_over(surface, self.score, self.meilleur_score)

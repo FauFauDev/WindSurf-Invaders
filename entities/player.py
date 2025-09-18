@@ -1,6 +1,7 @@
 import pygame
 from config import LARGEUR, HAUTEUR, DELAI_ENTRE_TIRS_JOUEUR, DELAI_ENTRE_TIRS_JOUEUR_RAPIDE
 from effects.powerup_effects import PowerupEffectManager
+from utils.control_settings import ControlSettings
 import os
 import random
 import math
@@ -38,7 +39,7 @@ class PrecisionTracker:
             self.current_streak = 0
 
 class Joueur(pygame.sprite.Sprite):
-    def __init__(self, sound_manager=None, player_img=None):
+    def __init__(self, sound_manager=None, player_img=None, controls=None):
         super().__init__()
         # Use provided image or load default
         if player_img is not None:
@@ -54,7 +55,8 @@ class Joueur(pygame.sprite.Sprite):
         self.rect.bottom = HAUTEUR - 20
         self.vitesse = 5  
         self.sound_manager = sound_manager
-        
+        self.controls = controls
+
         # Hit effect
         self.hit_flash = False
         self.hit_flash_start = 0
@@ -108,23 +110,42 @@ class Joueur(pygame.sprite.Sprite):
     def set_sound_manager(self, sound_manager):
         self.sound_manager = sound_manager
 
+    def _get_action_key(self, action):
+        if self.controls:
+            return self.controls.get(action)
+        return ControlSettings.DEFAULT_BINDINGS[action]
+
     def deplacer(self):
         keys = pygame.key.get_pressed()
         self.derniere_position = self.rect.x
-        
+
+        left = self._get_action_key("move_left")
+        right = self._get_action_key("move_right")
+        up = self._get_action_key("move_up")
+        down = self._get_action_key("move_down")
+
         if self.en_dash:
             self.rect.x += self.dash_direction * self.dash_vitesse
         else:
-            if keys[pygame.K_LEFT]:
+            if keys[left]:
                 self.rect.x -= self.vitesse
-            if keys[pygame.K_RIGHT]:
+            if keys[right]:
                 self.rect.x += self.vitesse
-        
+
+        if keys[up]:
+            self.rect.y -= self.vitesse
+        if keys[down]:
+            self.rect.y += self.vitesse
+
         # Keep player within screen bounds
         if self.rect.left < 0:
             self.rect.left = 0
         if self.rect.right > LARGEUR:
             self.rect.right = LARGEUR
+        if self.rect.top < 0:
+            self.rect.top = 0
+        if self.rect.bottom > HAUTEUR:
+            self.rect.bottom = HAUTEUR
 
     def activer_dash(self, direction):
         if self.dash_disponible:
@@ -143,10 +164,6 @@ class Joueur(pygame.sprite.Sprite):
 
     def update(self):
         current_time = pygame.time.get_ticks()
-        
-        # Update hitbox position with player
-        self.hitbox.centerx = self.rect.centerx
-        self.hitbox.centery = self.rect.centery
         
         # Update hit flash effect
         if self.hit_flash and current_time - self.hit_flash_start > self.hit_flash_duration:
@@ -187,11 +204,32 @@ class Joueur(pygame.sprite.Sprite):
         
         # Rest of the update code...
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT] and self.rect.left > 0:
+        left = self._get_action_key("move_left")
+        right = self._get_action_key("move_right")
+        up = self._get_action_key("move_up")
+        down = self._get_action_key("move_down")
+
+        if keys[left]:
             self.rect.x -= self.vitesse
-        if keys[pygame.K_RIGHT] and self.rect.right < LARGEUR:
+        if keys[right]:
             self.rect.x += self.vitesse
-            
+        if keys[up]:
+            self.rect.y -= self.vitesse
+        if keys[down]:
+            self.rect.y += self.vitesse
+
+        if self.rect.left < 0:
+            self.rect.left = 0
+        if self.rect.right > LARGEUR:
+            self.rect.right = LARGEUR
+        if self.rect.top < 0:
+            self.rect.top = 0
+        if self.rect.bottom > HAUTEUR:
+            self.rect.bottom = HAUTEUR
+
+        self.hitbox.centerx = self.rect.centerx
+        self.hitbox.centery = self.rect.centery
+
         # Recharge d'énergie
         if current_time - self.derniere_recharge >= 100:  # Recharge every 100ms
             if self.energie < 100:
