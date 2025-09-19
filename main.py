@@ -27,6 +27,7 @@ from ui.menus import dessiner_menu_accueil, handle_menu_event, menu_state
 
 # Import systems
 from systems.score import ComboSystem, charger_meilleur_score, sauvegarder_meilleur_score
+from systems.level_transition import LevelTransitionManager
 
 from utils.control_settings import ControlSettings
 
@@ -106,6 +107,10 @@ class Game:
         
         # Systems
         self.combo_system = ComboSystem()
+        self.level_transition = LevelTransitionManager()
+
+        # Timed audio events
+        self.scheduled_sounds = []
         
         # Powerup timing
         self.dernier_powerup = 0
@@ -155,6 +160,8 @@ class Game:
         # Reset combo system and start music
         self.combo_system.reset()
         self.sound_manager.play('music', 0.3)  # Start music at lower volume
+        self.level_transition.reset()
+        self.scheduled_sounds.clear()
 
     def toggle_fullscreen(self):
         current_flags = self.fenetre.get_flags()
@@ -238,6 +245,10 @@ class Game:
             self.projectiles.append(projectile)
 
     def update(self):
+        current_time = pygame.time.get_ticks()
+        self.level_transition.update(current_time)
+        self._process_scheduled_sounds(current_time)
+
         if not self.menu and not self.game_over:
             if not self.pause:
                 # Update game objects
@@ -245,10 +256,8 @@ class Game:
                 self.joueur.update()
                 self.update_projectiles()
                 self.update_aliens()
-                
+
                 # Update mystery aliens
-                current_time = pygame.time.get_ticks()
-                
                 # Mystery alien wave spawning
                 if len(self.mystery_aliens) == 0 and current_time - self.last_mystery_spawn > self.mystery_spawn_delay:
                     self.mystery_wave_size = random.randint(1, 3)  # Random wave size
@@ -564,52 +573,92 @@ class Game:
                 self.dernier_powerup = temps_actuel
 
     def check_level_completion(self):
+        if self.level_transition.is_active:
+            return
+
         if not self.envahisseurs and not self.boss and not self.niveau_termine:
             self.niveau_termine = True
             self.dernier_temps_niveau = pygame.time.get_ticks()
-            # Play level completion sound
-            self.sound_manager.play('level_completed', 0.7)  # Increased volume for level completion
-        
-        if self.niveau_termine and pygame.time.get_ticks() - self.dernier_temps_niveau > 2000:
-            # Clear projectiles but keep powerups
-            self.projectiles.clear()
-            self.projectiles_aliens.clear()
-            
-            # Increment level
-            self.niveau += 1
-            self.niveau_termine = False
-            
-            # Randomize background for new level
-            self.background.randomize_backgrounds()
-            
-            # Check if it's time for a boss level
-            if self.niveau % BossConstants.NIVEAU_APPARITION == 0:
-                print(f"Starting boss level {self.niveau}")  # Debug print
-                try:
-                    if 'boss' in self.images and self.images['boss']:
-                        boss_image = random.choice(self.images['boss'])
-                        print(f"Creating boss with image size: {boss_image.get_size()}")  # Debug print
-                        # Ensure sound_manager is passed to the boss
-                        self.boss = Boss(
-                            self.niveau // BossConstants.NIVEAU_APPARITION,
-                            boss_image,
-                            self.images,
-                            sound_manager=self.sound_manager  # Explicitly pass sound_manager
-                        )
-                        # Play boss transition sounds
-                        self.sound_manager.play('boss_transition', 0.6)  # Play transition sound
-                        pygame.time.wait(1000)  # Wait a second
-                        self.sound_manager.play('boss_warning', 0.7)  # Boss appear sound
-                        print("Boss created successfully")  # Debug print
-                    else:
-                        print("No boss images found, falling back to normal level")  # Debug print
-                        self.envahisseurs = creer_envahisseurs(self.niveau, self.alien_images)
-                except Exception as e:
-                    print(f"Error creating boss: {e}")
-                    self.envahisseurs = creer_envahisseurs(self.niveau, self.alien_images)
+            self.sound_manager.play('level_completed', 0.7)
+
+            next_level = self.niveau + 1
+            is_boss_level = next_level % BossConstants.NIVEAU_APPARITION == 0
+
+            self.level_transition.start(
+                next_level,
+                is_boss_level,
+                lambda nl=next_level, boss=is_boss_level: self._prepare_next_stage(nl, boss)
+            )
+
+    def _prepare_next_stage(self, next_level, is_boss_level):
+        """Set up enemies and state for the upcoming level."""
+        self.projectiles.clear()
+        self.projectiles_aliens.clear()
+        self.explosions.clear()
+
+        self.niveau = next_level
+        self.niveau_termine = False
+        self.transition_niveau = False
+        self.background.randomize_backgrounds()
+        self.dernier_temps_niveau = pygame.time.get_ticks()
+
+        # Reset auxiliary spawns so waves feel fresh
+        self.mystery_aliens.clear()
+        self.last_mystery_spawn = pygame.time.get_ticks()
+        self.mystery_wave_size = 0
+
+        if is_boss_level:
+            print(f"Starting boss level {self.niveau}")
+            self._spawn_boss_level()
+        else:
+            print(f"Starting normal level {self.niveau}")
+            self.boss = None
+            self.envahisseurs = creer_envahisseurs(self.niveau, self.alien_images)
+
+    def _spawn_boss_level(self):
+        self.envahisseurs = []
+        try:
+            if 'boss' in self.images and self.images['boss']:
+                boss_image = random.choice(self.images['boss'])
+                print(f"Creating boss with image size: {boss_image.get_size()}")
+                self.boss = Boss(
+                    self.niveau // BossConstants.NIVEAU_APPARITION,
+                    boss_image,
+                    self.images,
+                    sound_manager=self.sound_manager
+                )
+                self.sound_manager.play('boss_transition', 0.6)
+                self._schedule_sound('boss_warning', 0.7, 800)
+                print("Boss created successfully")
             else:
-                print(f"Starting normal level {self.niveau}")  # Debug print
+                print("No boss images found, falling back to normal level")
+                self.boss = None
                 self.envahisseurs = creer_envahisseurs(self.niveau, self.alien_images)
+        except Exception as e:
+            print(f"Error creating boss: {e}")
+            self.boss = None
+            self.envahisseurs = creer_envahisseurs(self.niveau, self.alien_images)
+
+    def _schedule_sound(self, sound_name, volume, delay_ms=0):
+        if not self.sound_manager:
+            return
+
+        trigger_time = pygame.time.get_ticks() + max(0, int(delay_ms))
+        self.scheduled_sounds.append((trigger_time, sound_name, volume))
+
+    def _process_scheduled_sounds(self, current_time):
+        if not self.sound_manager:
+            self.scheduled_sounds.clear()
+            return
+
+        remaining = []
+        for trigger_time, sound_name, volume in self.scheduled_sounds:
+            if current_time >= trigger_time:
+                self.sound_manager.play(sound_name, volume)
+            else:
+                remaining.append((trigger_time, sound_name, volume))
+
+        self.scheduled_sounds = remaining
 
     def changer_niveau(self):
         """Change to the next level with background transition."""
@@ -684,6 +733,9 @@ class Game:
         elif self.game_over:
             from ui.menus import dessiner_game_over
             dessiner_game_over(surface, self.score, self.meilleur_score)
+
+        # Overlay any active level transition on top of the scene
+        self.level_transition.draw(surface)
 
         if self.fenetre.get_size() != surface.get_size():
             scaled_surface = pygame.transform.smoothscale(surface, self.fenetre.get_size())
